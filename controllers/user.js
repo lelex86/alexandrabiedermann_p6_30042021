@@ -7,9 +7,16 @@ var CryptoJS = require("crypto-js");
 exports.signup = (req, res, next) => {
   bcrypt
     .hash(req.body.password, 10)
-    .then(hash => {
+    .then((hash) => {
       const user = new User({
-        email: CryptoJS.HmacSHA256(req.body.email, process.env.EMAIL).toString(),
+        email: CryptoJS.HmacSHA256(
+          req.body.email,
+          process.env.EMAIL
+        ).toString(),
+        emailAES: CryptoJS.AES.encrypt(
+          req.body.email,
+          process.env.EMAIL
+        ).toString(),
         password: hash,
       });
       user
@@ -19,8 +26,11 @@ exports.signup = (req, res, next) => {
     })
     .catch((error) => res.status(500).json({ error }));
 };
+
 exports.login = (req, res, next) => {
-  User.findOne({ email: CryptoJS.HmacSHA256(req.body.email, process.env.EMAIL).toString() })
+  User.findOne({
+    email: CryptoJS.HmacSHA256(req.body.email, process.env.EMAIL).toString(),
+  })
     .then((user) => {
       if (!user) {
         return res.status(401).json({ error: "Utilisateur non trouvé !" });
@@ -41,4 +51,93 @@ exports.login = (req, res, next) => {
         .catch((error) => res.status(500).json({ error }));
     })
     .catch((error) => res.status(500).json({ error }));
+};
+
+exports.modifyUser = (req, res, next) => {
+  if (req.body.password) {
+    User.findOne({
+      _id: req.params.id,
+    });
+    bcrypt
+      .hash(req.body.password, 10)
+      .then((hash) => {
+        const userObject = {
+          email: CryptoJS.HmacSHA256(
+            req.body.email,
+            process.env.EMAIL
+          ).toString(),
+          emailAES: CryptoJS.AES.encrypt(
+            req.body.email,
+            process.env.EMAIL
+          ).toString(),
+          password: hash,
+        };
+        User.updateOne(
+          { _id: req.params.id },
+          { ...userObject, _id: req.params.id }
+        )
+          .then(() =>
+            res.status(200).json({ message: "Utilisateur modifié !" })
+          )
+          .catch((error) => res.status(400).json({ error }));
+      })
+      .catch((error) => {
+        res.status(404).json({
+          error: error,
+        });
+      });
+  } else {
+    User.findOne({
+      _id: req.params.id,
+    })
+      .then((user) => {
+        const userObject = {
+          email: CryptoJS.HmacSHA256(
+            req.body.email,
+            process.env.EMAIL
+          ).toString(),
+          emailAES: CryptoJS.AES.encrypt(
+            req.body.email,
+            process.env.EMAIL
+          ).toString(),
+          password: user.password,
+        };
+        User.updateOne(
+          { _id: req.params.id },
+          { ...userObject, _id: req.params.id }
+        )
+          .then(() =>
+            res.status(200).json({ message: "Utilisateur modifié !" })
+          )
+          .catch((error) => res.status(400).json({ error }));
+      })
+      .catch((error) => {
+        res.status(404).json({
+          error: error,
+        });
+      });
+  }
+};
+
+exports.deleteUser = (req, res, next) => {
+  User.deleteOne({ _id: req.params.id }, { ...req.body, _id: req.params.id })
+    .then(() => res.status(200).json({ message: "Utilisateur supprimé !" }))
+    .catch((error) => res.status(400).json({ error }));
+};
+
+exports.getUser = (req, res, next) => {
+  User.findOne({
+    _id: req.params.id,
+  })
+    .then((user) => {
+      const bytes = CryptoJS.AES.decrypt(user.emailAES, process.env.EMAIL);
+      user.emailAES = bytes.toString(CryptoJS.enc.Utf8);
+      user = { email: user.emailAES, password: user.password };
+      res.status(200).json(user);
+    })
+    .catch((error) => {
+      res.status(404).json({
+        error: error,
+      });
+    });
 };

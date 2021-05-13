@@ -1,11 +1,23 @@
 const express = require("express");
-const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const saucesRoutes = require("./routes/sauces");
 const userRoutes = require("./routes/user");
 const dotenv = require("dotenv").config();
+const fs = require("fs");
 const path = require("path");
-var helmet = require("helmet");
+const helmet = require("helmet");
+const morgan = require("morgan");
+const sanitizer = require("express-html-sanitizer");
+
+config = {
+  allowedTags: [],
+  allowedAttributes: {},
+};
+const sanitizeReqBody = sanitizer(config);
+
+var accessLogStream = fs.createWriteStream(path.join(__dirname, "access.log"), {
+  flags: "a",
+});
 
 const app = express();
 mongoose
@@ -28,9 +40,10 @@ app.use((req, res, next) => {
   );
   next();
 });
+app.use(morgan("combined", { stream: accessLogStream }));
 app.use(express.json());
+app.use(sanitizeReqBody);
 app.use("/images", express.static(path.join(__dirname, "images")));
-
 app.use("/api/sauces", saucesRoutes);
 app.use("/api/auth", userRoutes);
 
