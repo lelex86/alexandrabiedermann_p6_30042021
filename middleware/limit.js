@@ -16,6 +16,7 @@ exports.createAccountLimiter = rateLimit({
 exports.loginLimiter = rateLimit({
   windowMs: 120 * 60 * 1000, // 2 hour window
   max: 3, // start blocking after 3 requests
+  skipSuccessfulRequests: true,
   message:
     "Trop de tentative de login depuis cette adresse, réessayer dans 2h.",
 });

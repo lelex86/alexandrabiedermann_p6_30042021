@@ -134,3 +134,49 @@ exports.likeSauce = (req, res, next) => {
       console.log("erreur:", error);
     });
 };
+
+exports.deleteWithUser = (req, res, next) => {
+  Sauce.find()
+    .then((sauce) => {
+      let sauces = sauce;
+      for (sauce of sauces) {
+        if (sauce.userId == req.params.id) {
+          const filename = sauce.imageUrl.split("/images/")[1];
+          fs.unlink(`images/${filename}`, () => {
+            Sauce.deleteMany({ userId: req.params.id })
+              .then(() => console.log("Sauces de l'utilisateur supprimées !"))
+              .catch((error) => console.log("erreur:", error));
+          });
+        } else if (sauce.usersLiked.includes(req.params.id)) {
+          sauce.usersLiked.splice(sauce.usersLiked.indexOf(req.params.id), 1);
+          Sauce.updateMany(
+            {},
+            {
+              usersLiked: sauce.usersLiked,
+              likes: sauce.usersLiked.length,
+            }
+          )
+            .then(() => {
+              console.log("préférences supprimées !");
+            })
+            .catch((error) => console.log("erreur:", error));
+        } else if (sauce.usersDisliked.includes(req.params.id)) {
+          sauce.usersDisliked.splice(
+            sauce.usersDisliked.indexOf(req.params.id),
+            1
+          );
+          Sauce.updateMany(
+            {},
+            {
+              usersDisliked: sauce.usersDisliked,
+              dislikes: sauce.usersDisliked.length,
+            }
+          )
+            .then(() => console.log("préférences supprimées !"))
+            .catch((error) => console.log("erreur:", error));
+        }
+      }
+      console.log("Sauces et like ou dislike supprimés !");
+    })
+    .catch((error) => console.log("erreur:", error));
+};
