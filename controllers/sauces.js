@@ -1,5 +1,7 @@
 const Sauce = require("../models/sauces");
 const fs = require("fs");
+const jwt = require("jsonwebtoken");
+const { error } = require("console");
 
 exports.createSauce = (req, res, next) => {
   const sauceObject = JSON.parse(req.body.sauce);
@@ -65,14 +67,27 @@ exports.modifySauce = (req, res, next) => {
 exports.deleteSauce = (req, res, next) => {
   Sauce.findOne({ _id: req.params.id })
     .then((sauce) => {
-      const filename = sauce.imageUrl.split("/images/")[1];
-      fs.unlink(`images/${filename}`, () => {
-        Sauce.deleteOne({ _id: req.params.id })
-          .then(() => res.status(200).json({ message: "Sauce supprimée !" }))
-          .catch((error) => res.status(400).json({ error }));
-      });
+      const token = req.headers.authorization.split(" ")[1];
+      const decodedToken = jwt.verify(token, process.env.TOKEN_KEY);
+      const userId = decodedToken.userId;
+      if (userId == sauce.userId) {
+        const filename = sauce.imageUrl.split("/images/")[1];
+        fs.unlink(`images/${filename}`, () => {
+          Sauce.deleteOne({ _id: req.params.id })
+            .then(() => res.status(200).json({ message: "Sauce supprimée !" }))
+            .catch((error) => res.status(400).json({ error }));
+        });
+      } else {
+        console.log("L'utilisateur n'a pas le droit de supprimer cette sauce!");
+        res
+          .status(401)
+          .json(
+            message,
+            "L'utilisateur n'a pas le droit de supprimer cette sauce!"
+          );
+      }
     })
-    .catch((error) => res.status(500).json({ error }));
+    .catch((error) => res.status(401).json({ error }));
 };
 
 exports.getAllSauces = (req, res, next) => {
